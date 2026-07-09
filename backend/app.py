@@ -264,9 +264,10 @@ def init_db() -> None:
 
 def ensure_db_initialized() -> None:
     # Required in production because gunicorn imports the app without running __main__.
-    should_init_db = not DB_PATH.exists() or os.environ.get("FORCE_DB_INIT") == "1"
-    if should_init_db:
-        init_db()
+    # Running the schema script on every boot is safe because it uses CREATE TABLE IF NOT EXISTS.
+    if os.environ.get("SKIP_DB_INIT") == "1":
+        return
+    init_db()
 
 
 def create_app() -> Flask:
@@ -694,9 +695,7 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    should_init_db = not DB_PATH.exists() or os.environ.get("FORCE_DB_INIT") == "1"
-    if should_init_db:
-        init_db()
+    ensure_db_initialized()
     port = int(os.environ.get("PORT", "5000"))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     app.run(host="0.0.0.0", port=port, debug=debug)
