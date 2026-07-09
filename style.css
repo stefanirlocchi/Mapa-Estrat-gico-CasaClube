@@ -804,6 +804,8 @@ button:focus {
 
 .mentor-history-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
 }
 
 .mentor-report-link {
@@ -822,6 +824,13 @@ button:focus {
 
 .mentor-report-link:hover {
   background: var(--vinho-escuro);
+}
+
+.mentor-report-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: #d6c8bc;
+  box-shadow: none;
 }
 
 .mentor-report-link.outline-link,

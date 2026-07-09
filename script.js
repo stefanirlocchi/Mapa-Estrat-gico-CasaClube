@@ -703,6 +703,16 @@ function renderMentorPanel() {
           <h2>${escapeHtml(session.client_name || "—")}</h2>
           <p>${escapeHtml(session.client_company || "—")}</p>
         </div>
+        <div class="mentor-history-actions">
+          <button
+            class="mentor-report-link"
+            type="button"
+            data-download-client-pdf
+            ${reportDownloadUrl ? "" : "disabled"}
+          >
+            Baixar PDF do cliente
+          </button>
+        </div>
         <div class="mentor-history-meta">
           <div><span>Sessão</span><strong>#${escapeHtml(session.id)}</strong></div>
           <div><span>Início</span><strong>${escapeHtml(formatDateTime(session.started_at))}</strong></div>
@@ -759,6 +769,18 @@ function renderMentorPanel() {
         } catch (error) {
           window.alert(`Não foi possível copiar o link: ${error.message}`);
         }
+      });
+    }
+
+    const downloadClientPdfBtn = mentorHistoryPanel.querySelector("[data-download-client-pdf]");
+    if (downloadClientPdfBtn) {
+      downloadClientPdfBtn.addEventListener("click", () => {
+        if (!reportDownloadUrl) {
+          window.alert("Ainda não existe PDF para esta sessão.");
+          return;
+        }
+
+        window.open(reportDownloadUrl, "_blank", "noopener,noreferrer");
       });
     }
 
