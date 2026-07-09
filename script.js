@@ -496,7 +496,7 @@ function renderLanding() {
         <input id="clientAccessCode" type="password" inputmode="numeric" placeholder="Digite o código de acesso" value="${escapeHtml(load("client_access_code"))}">
 
         <p class="landing-form-hint">
-          Esses dados serão usados no relatório final e na área da mentora.
+          Esses dados serão usados no relatório final e na área da mentora. Pressione Enter para acessar após preencher os campos.
         </p>
       </div>
 
@@ -524,13 +524,27 @@ function renderLanding() {
   const clientCompany = document.getElementById("clientCompany");
   const clientAccessCode = document.getElementById("clientAccessCode");
   const mentorAccessCode = document.getElementById("mentorAccessCode");
+  const clientAccessBtn = document.getElementById("clientAccessBtn");
 
   clientName.addEventListener("input", e => save("client_name", e.target.value));
   clientCompany.addEventListener("input", e => save("client_company", e.target.value));
   clientAccessCode.addEventListener("input", e => save("client_access_code", e.target.value));
   mentorAccessCode.addEventListener("input", e => save("mentor_access_code", e.target.value));
 
-  document.getElementById("clientAccessBtn").onclick = () => {
+  const submitClientAccessOnEnter = event => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    clientAccessBtn.click();
+  };
+
+  clientName.addEventListener("keydown", submitClientAccessOnEnter);
+  clientCompany.addEventListener("keydown", submitClientAccessOnEnter);
+  clientAccessCode.addEventListener("keydown", submitClientAccessOnEnter);
+
+  clientAccessBtn.onclick = () => {
     const entered = clientAccessCode.value.trim();
 
     if (entered.trim() !== CLIENT_ACCESS_CODE) {
