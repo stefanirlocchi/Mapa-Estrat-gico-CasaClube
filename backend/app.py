@@ -262,7 +262,15 @@ def init_db() -> None:
         connection.executescript(schema_path.read_text(encoding="utf-8"))
 
 
+def ensure_db_initialized() -> None:
+    # Required in production because gunicorn imports the app without running __main__.
+    should_init_db = not DB_PATH.exists() or os.environ.get("FORCE_DB_INIT") == "1"
+    if should_init_db:
+        init_db()
+
+
 def create_app() -> Flask:
+    ensure_db_initialized()
     app = Flask(__name__)
 
     def serve_project_file(filename: str):
