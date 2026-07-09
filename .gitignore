@@ -8,3 +8,4 @@ __pycache__/
 .DS_Store
 backend/__pycache__/
 backend/*.pyc
+backend/generated_reports/
