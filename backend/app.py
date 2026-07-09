@@ -18,7 +18,7 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Tabl
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
-DB_PATH = BASE_DIR / "mentoria.db"
+DB_PATH = Path(os.environ.get("DATABASE_PATH", str(BASE_DIR / "mentoria.db"))).expanduser()
 REPORTS_DIR = BASE_DIR / "generated_reports"
 CASA_CLUBE_LOGO = PROJECT_ROOT / "logo.casaclube.cropped.png"
 LU_LOCCCHI_LOGO = PROJECT_ROOT / "LOGOMENTORALULOCCHI.cropped.png"
@@ -250,6 +250,7 @@ def report_file_name(session_id: int) -> str:
 
 
 def get_connection() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON;")

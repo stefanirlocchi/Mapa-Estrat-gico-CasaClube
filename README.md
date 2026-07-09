@@ -26,6 +26,15 @@ Para publicar em Render, Railway ou outro host similar:
 3. Inicie com `gunicorn app:app`.
 4. O app usa a variável `PORT` fornecida pelo host.
 
+### Persistência no Render (essencial)
+
+Para não perder histórico em novo deploy:
+
+1. Crie um **Persistent Disk** no serviço Render.
+2. Monte em um caminho como `/var/data`.
+3. Em Environment Variables, defina `DATABASE_PATH=/var/data/mentoria.db`.
+4. Faça novo deploy.
+
 ## Observação
 
 O banco atual é SQLite. Para uso contínuo com múltiplas clientes, o ideal é migrar para um banco com persistência garantida, como PostgreSQL.
