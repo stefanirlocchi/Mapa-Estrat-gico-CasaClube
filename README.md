@@ -1,26 +1,31 @@
 # Mapa Estratégico Casa Clube®
 
-Portal em HTML, CSS e JavaScript para abrir no VS Code.
+Portal de mentoria com frontend em HTML/CSS/JavaScript e backend em Flask.
 
-## Como usar
+## Como rodar localmente
 
-1. Descompacte a pasta.
-2. Abra a pasta no VS Code.
-3. Abra o arquivo `index.html` no navegador.
-4. Para uma experiência melhor, instale a extensão **Live Server** e clique em **Go Live**.
+1. Entre na pasta `backend`.
+2. Instale as dependências com `pip install -r requirements.txt`.
+3. Inicie o servidor com `python app.py`.
+4. Abra o navegador em `http://127.0.0.1:5000`.
 
-## O que esta versão faz
+## O que a versão atual faz
 
 - Mostra o Mapa Estratégico Casa Clube® em etapas.
-- Tem barra de progresso.
-- Salva automaticamente as respostas no navegador.
-- Permite registrar observações da mentora.
-- Permite selecionar arquivos e registrar nomes.
-- Gera relatório em PDF usando a opção de impressão do navegador.
+- Salva respostas e notas.
+- Gera relatório em PDF pelo backend.
+- Mantém histórico de sessões por cliente.
+- Serve o portal e a API pelo mesmo domínio quando publicado.
 
-## Importante
+## Publicação
 
-Esta versão é um protótipo local. 
-As respostas ficam salvas apenas no navegador usado.
+Para publicar em Render, Railway ou outro host similar:
 
-Para virar um portal profissional com login, upload real e acesso remoto, o próximo passo é conectar com Firebase, Supabase ou outro banco de dados.
+1. Use o diretório `backend` como raiz do serviço.
+2. Instale as dependências com `pip install -r requirements.txt`.
+3. Inicie com `gunicorn app:app`.
+4. O app usa a variável `PORT` fornecida pelo host.
+
+## Observação
+
+O banco atual é SQLite. Para uso contínuo com múltiplas clientes, o ideal é migrar para um banco com persistência garantida, como PostgreSQL.

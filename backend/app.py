@@ -17,10 +17,11 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Tabl
 
 
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
 DB_PATH = BASE_DIR / "mentoria.db"
 REPORTS_DIR = BASE_DIR / "generated_reports"
-CASA_CLUBE_LOGO = BASE_DIR.parent / "logo.casaclube.cropped.png"
-LU_LOCCCHI_LOGO = BASE_DIR.parent / "LOGOMENTORALULOCCHI.cropped.png"
+CASA_CLUBE_LOGO = PROJECT_ROOT / "logo.casaclube.cropped.png"
+LU_LOCCCHI_LOGO = PROJECT_ROOT / "LOGOMENTORALULOCCHI.cropped.png"
 LOGO_CACHE_DIR = REPORTS_DIR / "logo-cache"
 
 REPORT_STEP_TITLES = [
@@ -264,6 +265,12 @@ def init_db() -> None:
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    def serve_project_file(filename: str):
+        file_path = PROJECT_ROOT / filename
+        if not file_path.exists() or file_path.is_dir():
+            return jsonify(error="file not found"), 404
+        return send_from_directory(PROJECT_ROOT, filename)
+
     @app.after_request
     def add_cors_headers(response):
         response.headers["Access-Control-Allow-Origin"] = "*"
@@ -274,6 +281,16 @@ def create_app() -> Flask:
     @app.get("/api/health")
     def health() -> tuple[dict, int]:
         return jsonify(status="ok", timestamp=utc_now()), 200
+
+    @app.get("/")
+    def home():
+        return serve_project_file("index.html")
+
+    @app.get("/<path:filename>")
+    def project_files(filename: str):
+        if filename.startswith("api/"):
+            return jsonify(error="not found"), 404
+        return serve_project_file(filename)
 
     @app.route("/api/clients/resolve", methods=["POST", "OPTIONS"])
     def resolve_client() -> tuple[dict, int]:
@@ -672,4 +689,6 @@ if __name__ == "__main__":
     should_init_db = not DB_PATH.exists() or os.environ.get("FORCE_DB_INIT") == "1"
     if should_init_db:
         init_db()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)

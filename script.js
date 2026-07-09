@@ -256,7 +256,8 @@ let appMode = sessionStorage.getItem("cc_app_mode") || "landing";
 let mentorClients = [];
 
 const CLIENT_ACCESS_CODE = "2026";
-const API_BASE_URL = "http://127.0.0.1:5000";
+const USE_LOCAL_API = window.location.protocol === "file:" || window.location.port === "8000";
+const API_BASE_URL = USE_LOCAL_API ? "http://127.0.0.1:5000" : window.location.origin;
 
 const menu = document.getElementById("menu");
 const formArea = document.getElementById("formArea");
