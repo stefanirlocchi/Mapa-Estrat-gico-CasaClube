@@ -223,21 +223,6 @@ const steps = [
     ]
   },
   {
-    title: "Observações da Mentora",
-    summary: "Área interna para hipóteses, prioridades e próximos passos.",
-    intro: "Área interna para registrar percepções durante os encontros.",
-    fields: [
-      ["textarea", "Hipóteses iniciais"],
-      ["textarea", "Pontos fortes observados"],
-      ["textarea", "Oportunidades de melhoria"],
-      ["textarea", "Prioridades sugeridas"],
-      ["textarea", "Decisões tomadas durante os encontros"],
-      ["textarea", "Ações de curto prazo"],
-      ["textarea", "Ações de médio e longo prazo"],
-      ["textarea", "Próximos passos para o relatório final"]
-    ]
-  },
-  {
     title: "Gerar relatório final",
     summary: "Última etapa para revisar o mapa e exportar o PDF consolidado.",
     intro: `
@@ -254,6 +239,11 @@ let currentStep = Number(localStorage.getItem("cc_currentStep")) || 0;
 let mentorMode = sessionStorage.getItem("cc_mentor_unlocked") === "true";
 let appMode = sessionStorage.getItem("cc_app_mode") || "landing";
 let mentorClients = [];
+
+if (currentStep >= steps.length) {
+  currentStep = Math.max(0, steps.length - 1);
+  localStorage.setItem("cc_currentStep", currentStep);
+}
 
 const CLIENT_ACCESS_CODE = "2026";
 const USE_LOCAL_API = window.location.protocol === "file:" || window.location.port === "8000";
@@ -331,9 +321,7 @@ async function saveAnswerRemote(stepKey, fieldKey, answer) {
   }
 }
 
-async function saveMentorNoteRemote(stepKey, note) {
-  const sessionId = currentSessionId();
-
+async function saveMentorNoteRemote(stepKey, note, sessionId = currentSessionId()) {
   if (!sessionId) {
     return;
   }
@@ -663,6 +651,7 @@ function renderMentorPanel() {
     const sections = steps.map(step => {
       const stepAnswers = answersByStep.get(step.title) || [];
       const stepNotes = notesByStep.get(step.title) || [];
+      const noteValue = stepNotes[0]?.note || "";
       const answerItems = stepAnswers.map(item => `
         <div class="answer-item">
           <strong>${escapeHtml(item.field_key)}</strong>
@@ -670,14 +659,7 @@ function renderMentorPanel() {
         </div>
       `).join("");
 
-      const noteItems = stepNotes.map(item => `
-        <div class="answer-item mentor-note-card">
-          <strong>Observação da mentora</strong>
-          <p>${escapeHtml(item.note || "—")}</p>
-        </div>
-      `).join("");
-
-      if (!answerItems && !noteItems) {
+      if (!answerItems && !noteValue) {
         return "";
       }
 
@@ -690,7 +672,11 @@ function renderMentorPanel() {
           <p class="mentor-summary">${escapeHtml(step.summary || "")}</p>
           <div class="mentor-items">
             ${answerItems || '<div class="answer-item empty"><strong>Sem respostas</strong><p>Não há respostas nesta etapa.</p></div>'}
-            ${noteItems}
+            <div class="mentor-note-editor">
+              <label>Apontamentos da mentora nesta etapa</label>
+              <textarea data-mentor-note-input data-step-key="${escapeHtml(step.title)}" placeholder="Digite seus apontamentos para ${escapeHtml(step.title)}...">${escapeHtml(noteValue)}</textarea>
+              <small>Salvamento automático por cliente e sessão.</small>
+            </div>
           </div>
         </article>
       `;
@@ -815,6 +801,20 @@ function renderMentorPanel() {
         const sessionId = button.getAttribute("data-session-id");
         activeSessionId = sessionId;
         void activateSession(sessionId);
+      });
+    });
+
+    const noteTimers = new Map();
+    mentorHistoryPanel.querySelectorAll("[data-mentor-note-input]").forEach(textarea => {
+      textarea.addEventListener("input", event => {
+        const stepKey = textarea.getAttribute("data-step-key") || "";
+        const note = event.target.value;
+
+        window.clearTimeout(noteTimers.get(stepKey));
+        const timerId = window.setTimeout(async () => {
+          await saveMentorNoteRemote(stepKey, note, session.id);
+        }, 420);
+        noteTimers.set(stepKey, timerId);
       });
     });
   };
@@ -1069,17 +1069,6 @@ function render() {
 
     formArea.appendChild(box);
   });
-
-  const noteId = slug("observacao_mentora_" + step.title);
-  const note = document.createElement("div");
-  note.className = "mentor-note";
-  note.innerHTML = `<label>Observação da mentora sobre esta etapa</label><textarea>${load(noteId)}</textarea>`;
-  note.querySelector("textarea").addEventListener("input", e => {
-    const value = e.target.value;
-    save(noteId, value);
-    void saveMentorNoteRemote(step.title, value);
-  });
-  formArea.appendChild(note);
 
   const progress = Math.round(((currentStep + 1) / steps.length) * 100);
   progressText.textContent = progress + "% concluído";
