@@ -52,6 +52,39 @@ const steps = [
     fields: []
   },
   {
+    title: "Conteúdos e Leituras",
+    summary: "Espaço da cliente para acessar materiais de apoio durante a mentoria.",
+    intro: `
+      <strong>Biblioteca da cliente.</strong><br><br>
+      Aqui você encontra conteúdos de apoio para avançar com mais clareza entre uma etapa e outra da mentoria.
+      <br><br>
+      Use esta aba sempre que quiser reforçar conceitos, revisar fundamentos e organizar ideias para os próximos encontros.
+    `,
+    resources: [
+      {
+        title: "Leitura guiada da marca",
+        type: "Leitura",
+        description: "Checklist para revisar percepção da marca, diferenciais e consistência da comunicação.",
+      },
+      {
+        title: "Diagnóstico comercial semanal",
+        type: "Prática",
+        description: "Roteiro rápido para acompanhar vendas, mix, calendário comercial e foco da semana.",
+      },
+      {
+        title: "Perguntas estratégicas para decisão",
+        type: "Reflexão",
+        description: "Perguntas para usar antes de tomar decisões de compra, posicionamento e operação.",
+      },
+      {
+        title: "Plano de ação de curto prazo",
+        type: "Modelo",
+        description: "Estrutura simples para transformar aprendizados em ações com prazo e prioridade.",
+      },
+    ],
+    fields: []
+  },
+  {
     title: "Expectativas",
     summary: "Entende o gatilho da busca pela mentoria e o valor esperado.",
     intro: "Aqui eu quero entender por que este é o momento certo para começarmos.",
@@ -1067,21 +1100,15 @@ function renderMenu() {
     return;
   }
 
-  const mentorBtn = document.createElement("button");
-  mentorBtn.textContent = mentorMode ? "Área da mentora (aberta)" : "Área da mentora";
-  mentorBtn.className = mentorMode ? "active mentor-tab" : "mentor-tab";
-  mentorBtn.onclick = () => {
-    if (mentorMode) {
+  if (mentorMode) {
+    const mentorBtn = document.createElement("button");
+    mentorBtn.textContent = "Área da mentora (aberta)";
+    mentorBtn.className = "active mentor-tab";
+    mentorBtn.onclick = () => {
       renderMentorPanel();
-      return;
-    }
-
-    const mentorAccessCode = document.getElementById("mentorAccessCode");
-    if (mentorAccessCode) {
-      mentorAccessCode.focus();
-    }
-  };
-  menu.appendChild(mentorBtn);
+    };
+    menu.appendChild(mentorBtn);
+  }
 
   steps.forEach((step, index) => {
     const btn = document.createElement("button");
@@ -1159,6 +1186,22 @@ function render() {
           </div>
         </div>
       </div>
+    `;
+  }
+
+  if (step.resources && step.resources.length) {
+    const resourcesMarkup = step.resources.map(item => `
+      <article class="resource-card">
+        <span>${escapeHtml(item.type || "Conteúdo")}</span>
+        <h3>${escapeHtml(item.title || "Material de apoio")}</h3>
+        <p>${escapeHtml(item.description || "")}</p>
+      </article>
+    `).join("");
+
+    formArea.innerHTML += `
+      <section class="resource-grid" aria-label="Conteúdos e leituras">
+        ${resourcesMarkup}
+      </section>
     `;
   }
 
