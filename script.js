@@ -356,313 +356,57 @@ async function saveMentorNoteRemote(stepKey, note, sessionId = currentSessionId(
 
 function hydrateHistory(history) {
   const answers = history.answers || [];
-  stepSummary.textContent = "Selecione uma cliente para abrir respostas e checklist estratégico.";
+  const notes = history.notes || [];
 
   answers.forEach(item => {
     save(item.field_key, item.answer || "");
   });
-      Escolha uma cliente para abrir a leitura completa do mapa e preencher o checklist interno.
+
   notes.forEach(item => {
-    <section class="mentor-client-cards" id="mentorClientCards">
-      <div class="mentor-list-loading">Carregando clientes...</div>
-    </section>
-    <section class="mentor-client-workspace" id="mentorClientWorkspace" hidden>
-      <div class="mentor-list-loading">Selecione uma cliente para abrir o histórico.</div>
-    </section>
-    <div class="mentor-actions">
-      <button id="mentorBackToCardsBtn" class="outline" hidden>Voltar para clientes</button>
-      <button id="mentorExitBtn" class="outline">Voltar ao mapa</button>
-      <button id="mentorLockBtn" class="outline">Bloquear acesso</button>
-    </div>
-  `;
+    save(`observacao_mentora_${item.step_key}`, item.note || "");
+  });
 
-  const mentorClientCards = document.getElementById("mentorClientCards");
-  const mentorClientWorkspace = document.getElementById("mentorClientWorkspace");
-  const mentorBackToCardsBtn = document.getElementById("mentorBackToCardsBtn");
-  let activeClientId = null;
-  let activeSessionId = null;
-
-  const showClientCards = () => {
-    mentorClientWorkspace.hidden = true;
-    mentorClientCards.hidden = false;
-    mentorBackToCardsBtn.hidden = true;
-    activeClientId = null;
-    activeSessionId = null;
-  };
-
-  const showWorkspace = () => {
-    mentorClientCards.hidden = true;
-    mentorClientWorkspace.hidden = false;
-    mentorBackToCardsBtn.hidden = false;
-  };
-
-  const renderWorkspace = dashboard => {
-    const historyData = dashboard.history;
-    const sessions = dashboard.sessions || [];
-
-    if (!historyData || !historyData.session) {
-      mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Nenhum histórico encontrado para esta cliente.</div>';
-      showWorkspace();
-      return;
-    }
-
-    const session = historyData.session;
-    const answers = historyData.answers || [];
-    const notes = historyData.notes || [];
-    const notesByStep = buildStepSummaryMap(notes);
-    const answersByStep = buildStepSummaryMap(answers);
-    const reportUrl = buildReportUrl(session.last_report_path);
-    const reportDownloadUrl = buildReportDownloadUrl(session.last_report_path);
-    const mentorChecklistRaw = (notesByStep.get(MENTOR_CHECKLIST_STEP_KEY) || [])[0]?.note || "";
-    const mentorChecklistValues = parseMentorChecklistNote(mentorChecklistRaw);
-
-    const sessionButtons = sessions.map(item => {
-      const isActive = String(item.id) === String(activeSessionId || session.id);
-      const reportState = Number(item.report_count || 0) > 0 ? "Relatório gerado" : "Relatório pendente";
-      return `
-        <button class="mentor-session-card ${isActive ? "active" : ""}" data-session-id="${item.id}">
-          <strong>Sessão #${escapeHtml(item.id)}</strong>
-          <span>${escapeHtml(item.status || "—")}</span>
-          <small>${escapeHtml(reportState)} · ${escapeHtml(formatDateTime(item.updated_at))}</small>
-        </button>
-      `;
-    }).join("");
-
-    const sections = steps.map(step => {
-      const stepAnswers = answersByStep.get(step.title) || [];
-      const stepNotes = notesByStep.get(step.title) || [];
-      const answerItems = stepAnswers.map(item => `
-        <div class="answer-item">
-          <strong>${escapeHtml(item.field_key)}</strong>
-          <p>${escapeHtml(item.answer || "—")}</p>
-        </div>
-      `).join("");
-      const noteItems = stepNotes.map(item => `
-        <div class="answer-item mentor-note-card">
-          <strong>Observação da mentora</strong>
-          <p>${escapeHtml(item.note || "—")}</p>
-        </div>
-      `).join("");
-
-      if (!answerItems && !noteItems) {
-        return "";
-      }
-
-      return `
-        <article class="mentor-section">
-          <div class="mentor-section-head">
-            <h2>${escapeHtml(step.title)}</h2>
-            <span>${stepAnswers.length} resposta(s)</span>
-          </div>
-          <p class="mentor-summary">${escapeHtml(step.summary || "")}</p>
-          <div class="mentor-items">
-            ${answerItems || '<div class="answer-item empty"><strong>Sem respostas</strong><p>Não há respostas nesta etapa.</p></div>'}
-            ${noteItems}
-          </div>
-        </article>
-      `;
-    }).filter(Boolean).join("");
-
-    mentorClientWorkspace.innerHTML = `
-      <div class="mentor-history-head">
-        <div>
-          <p class="landing-kicker">Histórico selecionado</p>
-          <h2>${escapeHtml(session.client_name || "—")}</h2>
-          <p>${escapeHtml(session.client_company || "—")}</p>
-        </div>
-        <div class="mentor-history-actions mentor-history-actions-stack">
-          <button class="mentor-report-link" type="button" data-download-client-pdf ${reportDownloadUrl ? "" : "disabled"}>Baixar PDF do cliente</button>
-          <button class="mentor-report-link outline-link" type="button" data-download-complete-pdf>Baixar PDF completo</button>
-          <button class="mentor-report-link ghost-link" type="button" data-exit-client>SAIR DO CLIENTE</button>
-        </div>
-        <div class="mentor-history-meta">
-          <div><span>Sessão</span><strong>#${escapeHtml(session.id)}</strong></div>
-          <div><span>Início</span><strong>${escapeHtml(formatDateTime(session.started_at))}</strong></div>
-          <div><span>Atualizado</span><strong>${escapeHtml(formatDateTime(session.updated_at))}</strong></div>
-          <div><span>Status</span><strong>${escapeHtml(session.status || "—")}</strong></div>
-          <div><span>Relatório</span><strong>${Number(session.report_count || 0) > 0 ? "Gerado" : "Pendente"}</strong></div>
-          <div><span>Último PDF</span><strong>${escapeHtml(formatDateTime(session.last_report_generated_at))}</strong></div>
-        </div>
-      </div>
-      <div class="mentor-workspace-columns">
-        <section class="mentor-responses-column">
-          <div class="mentor-session-list">
-            <div class="mentor-session-list-head">
-              <p class="landing-kicker">Sessões do cliente</p>
-              <span>${sessions.length} sessão(ões)</span>
-            </div>
-            <div class="mentor-session-grid">
-              ${sessionButtons || '<div class="mentor-list-loading">Nenhuma sessão encontrada para esta cliente.</div>'}
-            </div>
-          </div>
-          <div class="mentor-grid">
-            ${sections || '<div class="mentor-list-loading">Esta sessão ainda não tem respostas.</div>'}
-          </div>
-        </section>
-        <aside class="mentor-checklist-column">
-          <section class="mentor-checklist-panel">
-            <div class="mentor-checklist-head">
-              <p class="landing-kicker">Modelo fixo da mentora</p>
-              <h3>Checklist estratégico desta cliente</h3>
-              <p>Leia as respostas à esquerda e preencha o checklist à direita.</p>
-            </div>
-            <div class="mentor-checklist-grid">
-              ${MENTOR_CHECKLIST_FIELDS.map(label => `
-                <label class="mentor-checklist-item">
-                  <span>${escapeHtml(label)}</span>
-                  <textarea data-mentor-checklist-field="${escapeHtml(label)}" placeholder="Digite aqui...">${escapeHtml(mentorChecklistValues[label] || "")}</textarea>
-                </label>
-              `).join("")}
-            </div>
-          </section>
-        </aside>
-      </div>
-    `;
-
-    showWorkspace();
-
-    const downloadClientPdfBtn = mentorClientWorkspace.querySelector("[data-download-client-pdf]");
-    if (downloadClientPdfBtn) {
-      downloadClientPdfBtn.addEventListener("click", () => {
-        if (!reportDownloadUrl) {
-          window.alert("Ainda não existe PDF para esta sessão.");
-          return;
-        }
-
-        window.open(reportDownloadUrl, "_blank", "noopener,noreferrer");
-      });
-    }
-
-    const downloadCompleteBtn = mentorClientWorkspace.querySelector("[data-download-complete-pdf]");
-    if (downloadCompleteBtn) {
-      downloadCompleteBtn.addEventListener("click", async () => {
-        const originalLabel = downloadCompleteBtn.textContent;
-        downloadCompleteBtn.textContent = "Gerando PDF completo...";
-        downloadCompleteBtn.disabled = true;
-
-        try {
-          const response = await apiRequest(`/api/sessions/${session.id}/reports`, {
-            method: "POST",
-            body: JSON.stringify({ report_path: "server-pdf-completo" }),
-          });
-
-          const completeDownloadUrl = `${API_BASE_URL}${response.download_url}`;
-          window.open(completeDownloadUrl, "_blank", "noopener,noreferrer");
-        } catch (error) {
-          window.alert(`Não foi possível gerar o PDF completo: ${error.message}`);
-        } finally {
-          downloadCompleteBtn.textContent = originalLabel;
-          downloadCompleteBtn.disabled = false;
-        }
-      });
-    }
-
-    const exitClientBtn = mentorClientWorkspace.querySelector("[data-exit-client]");
-    if (exitClientBtn) {
-      exitClientBtn.addEventListener("click", showClientCards);
-    }
-
-    mentorClientWorkspace.querySelectorAll("[data-session-id]").forEach(button => {
-      button.addEventListener("click", () => {
-        const sessionId = button.getAttribute("data-session-id");
-        activeSessionId = sessionId;
-        void activateSession(sessionId);
-      });
-    });
-
-    const checklistState = { ...mentorChecklistValues };
-    const checklistTimers = new Map();
-    mentorClientWorkspace.querySelectorAll("[data-mentor-checklist-field]").forEach(textarea => {
-      textarea.addEventListener("input", event => {
-        const fieldLabel = textarea.getAttribute("data-mentor-checklist-field") || "";
-        checklistState[fieldLabel] = event.target.value;
-
-        window.clearTimeout(checklistTimers.get(fieldLabel));
-        const timerId = window.setTimeout(async () => {
-          const mergedNote = buildMentorChecklistNote(checklistState);
-          await saveMentorNoteRemote(MENTOR_CHECKLIST_STEP_KEY, mergedNote, session.id);
-        }, 420);
-        checklistTimers.set(fieldLabel, timerId);
-      });
-    });
-  };
-
-  const activateSession = async sessionId => {
-    if (!activeClientId) {
-      return;
-    }
-
-    mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
-    showWorkspace();
-    try {
-      const dashboard = await fetchMentorClientDashboard(activeClientId, sessionId);
-      activeSessionId = dashboard.selectedSessionId || sessionId;
-      renderWorkspace(dashboard);
-    } catch (error) {
-      mentorClientWorkspace.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
-    }
-  };
-
-  const activateClient = async (clientId, preferredSessionId = null) => {
-    activeClientId = clientId;
-    mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
-    showWorkspace();
-    try {
-      const dashboard = await fetchMentorClientDashboard(clientId, preferredSessionId);
-      activeSessionId = dashboard.selectedSessionId || preferredSessionId || null;
-      renderWorkspace(dashboard);
-    } catch (error) {
-      mentorClientWorkspace.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
-    }
-  };
-
-  const renderClientCards = clients => {
-    if (!clients.length) {
-      mentorClientCards.innerHTML = '<div class="mentor-list-loading">Nenhuma cliente cadastrada.</div>';
-      return;
-    }
-
-    mentorClientCards.innerHTML = clients.map(client => `
-      <button class="mentor-client-card" data-client-id="${client.id}">
-        <strong>${escapeHtml(client.name)}</strong>
-        <span>${escapeHtml(client.company)}</span>
-        <small>ID ${escapeHtml(client.id)} · ${escapeHtml(client.access_code)}</small>
-      </button>
-    `).join("");
-
-    mentorClientCards.querySelectorAll("[data-client-id]").forEach(button => {
-      button.addEventListener("click", () => {
-        const clientId = button.getAttribute("data-client-id");
-        void activateClient(clientId);
-      });
-    });
-  };
-
-  void (async () => {
-    try {
-      const response = await apiRequest("/api/clients", { method: "GET" });
-      mentorClients = response.clients || [];
-      renderClientCards(mentorClients);
-      showClientCards();
-    } catch (error) {
-      mentorClientCards.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
-    }
-  })();
-
-  mentorBackToCardsBtn.onclick = showClientCards;
-
-  document.getElementById("mentorExitBtn").onclick = () => {
-    mentorMode = false;
-    sessionStorage.removeItem("cc_mentor_unlocked");
-    render();
-  };
-
-  document.getElementById("mentorLockBtn").onclick = () => {
-    mentorMode = false;
-    sessionStorage.removeItem("cc_mentor_unlocked");
-    render();
-  };
+  const session = history.session || {};
+  if (session.client_id) {
+    save("client_id", String(session.client_id));
+  }
 }
+
+function formatDateTime(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function buildReportUrl(reportPath) {
+  return reportPath ? `${API_BASE_URL}/api/reports/${encodeURIComponent(reportPath)}` : "";
+}
+
+function buildReportDownloadUrl(reportPath) {
+  return reportPath ? `${API_BASE_URL}/api/reports/${encodeURIComponent(reportPath)}/download` : "";
+}
+
+function buildStepSummaryMap(items = []) {
+  const summary = new Map();
+
+  items.forEach(item => {
+    if (!summary.has(item.step_key)) {
+      summary.set(item.step_key, []);
+    }
+
+    summary.get(item.step_key).push(item);
+  });
+
   return summary;
 }
 
@@ -905,38 +649,53 @@ function renderLanding() {
 
 function renderMentorPanel() {
   stepTitle.textContent = "Área da mentora";
-  stepSummary.textContent = "Selecione uma cliente para ver histórico, respostas e observações.";
+  stepSummary.textContent = "Selecione uma cliente para abrir respostas e checklist estratégico.";
 
   formArea.innerHTML = `
     <div class="intro mentor-intro">
       <strong>Acesso liberado.</strong><br><br>
-      Aqui você pode revisar todas as respostas registradas no mapa estratégico, cliente por cliente.
+      Escolha uma cliente para abrir a leitura completa do mapa e preencher o checklist interno.
     </div>
-    <div class="mentor-dashboard">
-      <aside class="mentor-client-list" id="mentorClientList">
-        <div class="mentor-list-loading">Carregando clientes...</div>
-      </aside>
-      <section class="mentor-history" id="mentorHistoryPanel">
-        <div class="mentor-list-loading">Selecione uma cliente para abrir o histórico.</div>
-      </section>
-    </div>
+    <section class="mentor-client-cards" id="mentorClientCards">
+      <div class="mentor-list-loading">Carregando clientes...</div>
+    </section>
+    <section class="mentor-client-workspace" id="mentorClientWorkspace" hidden>
+      <div class="mentor-list-loading">Selecione uma cliente para abrir o histórico.</div>
+    </section>
     <div class="mentor-actions">
+      <button id="mentorBackToCardsBtn" class="outline" hidden>Voltar para clientes</button>
       <button id="mentorExitBtn" class="outline">Voltar ao mapa</button>
       <button id="mentorLockBtn" class="outline">Bloquear acesso</button>
     </div>
   `;
 
-  const mentorClientList = document.getElementById("mentorClientList");
-  const mentorHistoryPanel = document.getElementById("mentorHistoryPanel");
+  const mentorClientCards = document.getElementById("mentorClientCards");
+  const mentorClientWorkspace = document.getElementById("mentorClientWorkspace");
+  const mentorBackToCardsBtn = document.getElementById("mentorBackToCardsBtn");
   let activeClientId = null;
   let activeSessionId = null;
 
-  const renderHistory = dashboard => {
+  const showClientCards = () => {
+    mentorClientWorkspace.hidden = true;
+    mentorClientCards.hidden = false;
+    mentorBackToCardsBtn.hidden = true;
+    activeClientId = null;
+    activeSessionId = null;
+  };
+
+  const showWorkspace = () => {
+    mentorClientCards.hidden = true;
+    mentorClientWorkspace.hidden = false;
+    mentorBackToCardsBtn.hidden = false;
+  };
+
+  const renderWorkspace = dashboard => {
     const historyData = dashboard.history;
     const sessions = dashboard.sessions || [];
 
     if (!historyData || !historyData.session) {
-      mentorHistoryPanel.innerHTML = '<div class="mentor-list-loading">Nenhum histórico encontrado para esta cliente.</div>';
+      mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Nenhum histórico encontrado para esta cliente.</div>';
+      showWorkspace();
       return;
     }
 
@@ -945,7 +704,6 @@ function renderMentorPanel() {
     const notes = historyData.notes || [];
     const notesByStep = buildStepSummaryMap(notes);
     const answersByStep = buildStepSummaryMap(answers);
-    const reportUrl = buildReportUrl(session.last_report_path);
     const reportDownloadUrl = buildReportDownloadUrl(session.last_report_path);
     const mentorChecklistRaw = (notesByStep.get(MENTOR_CHECKLIST_STEP_KEY) || [])[0]?.note || "";
     const mentorChecklistValues = parseMentorChecklistNote(mentorChecklistRaw);
@@ -965,15 +723,20 @@ function renderMentorPanel() {
     const sections = steps.map(step => {
       const stepAnswers = answersByStep.get(step.title) || [];
       const stepNotes = notesByStep.get(step.title) || [];
-      const noteValue = stepNotes[0]?.note || "";
       const answerItems = stepAnswers.map(item => `
         <div class="answer-item">
           <strong>${escapeHtml(item.field_key)}</strong>
           <p>${escapeHtml(item.answer || "—")}</p>
         </div>
       `).join("");
+      const noteItems = stepNotes.map(item => `
+        <div class="answer-item mentor-note-card">
+          <strong>Observação da mentora</strong>
+          <p>${escapeHtml(item.note || "—")}</p>
+        </div>
+      `).join("");
 
-      if (!answerItems && !noteValue) {
+      if (!answerItems && !noteItems) {
         return "";
       }
 
@@ -986,32 +749,23 @@ function renderMentorPanel() {
           <p class="mentor-summary">${escapeHtml(step.summary || "")}</p>
           <div class="mentor-items">
             ${answerItems || '<div class="answer-item empty"><strong>Sem respostas</strong><p>Não há respostas nesta etapa.</p></div>'}
-            <div class="mentor-note-editor">
-              <label>Apontamentos da mentora nesta etapa</label>
-              <textarea data-mentor-note-input data-step-key="${escapeHtml(step.title)}" placeholder="Digite seus apontamentos para ${escapeHtml(step.title)}...">${escapeHtml(noteValue)}</textarea>
-              <small>Salvamento automático por cliente e sessão.</small>
-            </div>
+            ${noteItems}
           </div>
         </article>
       `;
     }).filter(Boolean).join("");
 
-    mentorHistoryPanel.innerHTML = `
+    mentorClientWorkspace.innerHTML = `
       <div class="mentor-history-head">
         <div>
           <p class="landing-kicker">Histórico selecionado</p>
           <h2>${escapeHtml(session.client_name || "—")}</h2>
           <p>${escapeHtml(session.client_company || "—")}</p>
         </div>
-        <div class="mentor-history-actions">
-          <button
-            class="mentor-report-link"
-            type="button"
-            data-download-client-pdf
-            ${reportDownloadUrl ? "" : "disabled"}
-          >
-            Baixar PDF do cliente
-          </button>
+        <div class="mentor-history-actions mentor-history-actions-stack">
+          <button class="mentor-report-link" type="button" data-download-client-pdf ${reportDownloadUrl ? "" : "disabled"}>Baixar PDF do cliente</button>
+          <button class="mentor-report-link outline-link" type="button" data-download-complete-pdf>Baixar PDF completo</button>
+          <button class="mentor-report-link ghost-link" type="button" data-exit-client>SAIR DO CLIENTE</button>
         </div>
         <div class="mentor-history-meta">
           <div><span>Sessão</span><strong>#${escapeHtml(session.id)}</strong></div>
@@ -1022,73 +776,44 @@ function renderMentorPanel() {
           <div><span>Último PDF</span><strong>${escapeHtml(formatDateTime(session.last_report_generated_at))}</strong></div>
         </div>
       </div>
-      <div class="mentor-session-list">
-        <div class="mentor-session-list-head">
-          <p class="landing-kicker">Sessões do cliente</p>
-          <span>${sessions.length} sessão(ões)</span>
-        </div>
-        <div class="mentor-session-grid">
-          ${sessionButtons || '<div class="mentor-list-loading">Nenhuma sessão encontrada para esta cliente.</div>'}
-        </div>
-      </div>
-      ${reportUrl ? `
-        <section class="mentor-report-panel">
-          <div class="mentor-report-panel-head">
-            <div>
-              <p class="landing-kicker">Relatório salvo</p>
-              <h3>Arquivo PDF da sessão #${escapeHtml(session.id)}</h3>
-              <p>Abra, baixe ou compartilhe o relatório final desta sessão.</p>
+      <div class="mentor-workspace-columns">
+        <section class="mentor-responses-column">
+          <div class="mentor-session-list">
+            <div class="mentor-session-list-head">
+              <p class="landing-kicker">Sessões do cliente</p>
+              <span>${sessions.length} sessão(ões)</span>
             </div>
-            <div class="mentor-report-state">
-              <strong>${Number(session.report_count || 0) > 0 ? "Gerado" : "Pendente"}</strong>
-              <span>${escapeHtml(formatDateTime(session.last_report_generated_at))}</span>
+            <div class="mentor-session-grid">
+              ${sessionButtons || '<div class="mentor-list-loading">Nenhuma sessão encontrada para esta cliente.</div>'}
             </div>
           </div>
-          <div class="mentor-report-actions">
-            <a class="mentor-report-link" href="${reportUrl}" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
-            <a class="mentor-report-link outline-link" href="${reportDownloadUrl}" download>Baixar PDF</a>
-            <button class="mentor-report-link outline-link" type="button" data-download-complete-pdf>Baixar PDF completo</button>
-            <button class="mentor-report-link ghost-link" type="button" data-copy-report-link>Copiar link</button>
-            <button class="mentor-report-link ghost-link" type="button" data-share-report>Compartilhar</button>
+          <div class="mentor-grid">
+            ${sections || '<div class="mentor-list-loading">Esta sessão ainda não tem respostas.</div>'}
           </div>
         </section>
-      ` : ""}
-      <section class="mentor-checklist-panel">
-        <div class="mentor-checklist-head">
-          <p class="landing-kicker">Modelo fixo da mentora</p>
-          <h3>Checklist estratégico desta cliente</h3>
-          <p>Esses apontamentos são internos e ficam vinculados a esta sessão.</p>
-        </div>
-        <div class="mentor-checklist-grid">
-          ${MENTOR_CHECKLIST_FIELDS.map(label => `
-            <label class="mentor-checklist-item">
-              <span>${escapeHtml(label)}</span>
-              <textarea data-mentor-checklist-field="${escapeHtml(label)}" placeholder="Digite aqui...">${escapeHtml(mentorChecklistValues[label] || "")}</textarea>
-            </label>
-          `).join("")}
-        </div>
-      </section>
-      <div class="mentor-grid">
-        ${sections || '<div class="mentor-list-loading">Esta sessão ainda não tem respostas.</div>'}
+        <aside class="mentor-checklist-column">
+          <section class="mentor-checklist-panel">
+            <div class="mentor-checklist-head">
+              <p class="landing-kicker">Modelo fixo da mentora</p>
+              <h3>Checklist estratégico desta cliente</h3>
+              <p>Leia as respostas à esquerda e preencha o checklist à direita.</p>
+            </div>
+            <div class="mentor-checklist-grid">
+              ${MENTOR_CHECKLIST_FIELDS.map(label => `
+                <label class="mentor-checklist-item">
+                  <span>${escapeHtml(label)}</span>
+                  <textarea data-mentor-checklist-field="${escapeHtml(label)}" placeholder="Digite aqui...">${escapeHtml(mentorChecklistValues[label] || "")}</textarea>
+                </label>
+              `).join("")}
+            </div>
+          </section>
+        </aside>
       </div>
     `;
 
-    const copyReportLinkBtn = mentorHistoryPanel.querySelector("[data-copy-report-link]");
-    if (copyReportLinkBtn) {
-      copyReportLinkBtn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(reportUrl);
-          copyReportLinkBtn.textContent = "Link copiado";
-          window.setTimeout(() => {
-            copyReportLinkBtn.textContent = "Copiar link";
-          }, 1800);
-        } catch (error) {
-          window.alert(`Não foi possível copiar o link: ${error.message}`);
-        }
-      });
-    }
+    showWorkspace();
 
-    const downloadClientPdfBtn = mentorHistoryPanel.querySelector("[data-download-client-pdf]");
+    const downloadClientPdfBtn = mentorClientWorkspace.querySelector("[data-download-client-pdf]");
     if (downloadClientPdfBtn) {
       downloadClientPdfBtn.addEventListener("click", () => {
         if (!reportDownloadUrl) {
@@ -1100,31 +825,7 @@ function renderMentorPanel() {
       });
     }
 
-    const shareReportBtn = mentorHistoryPanel.querySelector("[data-share-report]");
-    if (shareReportBtn) {
-      shareReportBtn.addEventListener("click", async () => {
-        try {
-          if (navigator.share) {
-            await navigator.share({
-              title: `Relatório Casa Clube - ${session.client_name || "cliente"}`,
-              text: `Relatório final da sessão #${session.id}`,
-              url: reportUrl,
-            });
-            return;
-          }
-
-          await navigator.clipboard.writeText(reportUrl);
-          shareReportBtn.textContent = "Link copiado";
-          window.setTimeout(() => {
-            shareReportBtn.textContent = "Compartilhar";
-          }, 1800);
-        } catch (error) {
-          window.alert(`Não foi possível compartilhar o relatório: ${error.message}`);
-        }
-      });
-    }
-
-    const downloadCompleteBtn = mentorHistoryPanel.querySelector("[data-download-complete-pdf]");
+    const downloadCompleteBtn = mentorClientWorkspace.querySelector("[data-download-complete-pdf]");
     if (downloadCompleteBtn) {
       downloadCompleteBtn.addEventListener("click", async () => {
         const originalLabel = downloadCompleteBtn.textContent;
@@ -1148,33 +849,22 @@ function renderMentorPanel() {
       });
     }
 
-    mentorHistoryPanel.querySelectorAll("[data-session-id]").forEach(button => {
+    const exitClientBtn = mentorClientWorkspace.querySelector("[data-exit-client]");
+    if (exitClientBtn) {
+      exitClientBtn.addEventListener("click", showClientCards);
+    }
+
+    mentorClientWorkspace.querySelectorAll("[data-session-id]").forEach(button => {
       button.addEventListener("click", () => {
-        mentorHistoryPanel.querySelectorAll(".mentor-session-card").forEach(card => card.classList.remove("active"));
-        button.classList.add("active");
         const sessionId = button.getAttribute("data-session-id");
         activeSessionId = sessionId;
         void activateSession(sessionId);
       });
     });
 
-    const noteTimers = new Map();
-    mentorHistoryPanel.querySelectorAll("[data-mentor-note-input]").forEach(textarea => {
-      textarea.addEventListener("input", event => {
-        const stepKey = textarea.getAttribute("data-step-key") || "";
-        const note = event.target.value;
-
-        window.clearTimeout(noteTimers.get(stepKey));
-        const timerId = window.setTimeout(async () => {
-          await saveMentorNoteRemote(stepKey, note, session.id);
-        }, 420);
-        noteTimers.set(stepKey, timerId);
-      });
-    });
-
     const checklistState = { ...mentorChecklistValues };
     const checklistTimers = new Map();
-    mentorHistoryPanel.querySelectorAll("[data-mentor-checklist-field]").forEach(textarea => {
+    mentorClientWorkspace.querySelectorAll("[data-mentor-checklist-field]").forEach(textarea => {
       textarea.addEventListener("input", event => {
         const fieldLabel = textarea.getAttribute("data-mentor-checklist-field") || "";
         checklistState[fieldLabel] = event.target.value;
@@ -1194,46 +884,46 @@ function renderMentorPanel() {
       return;
     }
 
-    mentorHistoryPanel.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
+    mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
+    showWorkspace();
     try {
       const dashboard = await fetchMentorClientDashboard(activeClientId, sessionId);
       activeSessionId = dashboard.selectedSessionId || sessionId;
-      renderHistory(dashboard);
+      renderWorkspace(dashboard);
     } catch (error) {
-      mentorHistoryPanel.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
+      mentorClientWorkspace.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
     }
   };
 
   const activateClient = async (clientId, preferredSessionId = null) => {
     activeClientId = clientId;
-    mentorHistoryPanel.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
+    mentorClientWorkspace.innerHTML = '<div class="mentor-list-loading">Carregando histórico...</div>';
+    showWorkspace();
     try {
       const dashboard = await fetchMentorClientDashboard(clientId, preferredSessionId);
       activeSessionId = dashboard.selectedSessionId || preferredSessionId || null;
-      renderHistory(dashboard);
+      renderWorkspace(dashboard);
     } catch (error) {
-      mentorHistoryPanel.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
+      mentorClientWorkspace.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
     }
   };
 
-  const renderMentorClientList = async clients => {
+  const renderClientCards = clients => {
     if (!clients.length) {
-      mentorClientList.innerHTML = '<div class="mentor-list-loading">Nenhuma cliente cadastrada.</div>';
+      mentorClientCards.innerHTML = '<div class="mentor-list-loading">Nenhuma cliente cadastrada.</div>';
       return;
     }
 
-    mentorClientList.innerHTML = clients.map((client, index) => `
-      <button class="mentor-client-card ${index === 0 ? "active" : ""}" data-client-id="${client.id}">
+    mentorClientCards.innerHTML = clients.map(client => `
+      <button class="mentor-client-card" data-client-id="${client.id}">
         <strong>${escapeHtml(client.name)}</strong>
         <span>${escapeHtml(client.company)}</span>
         <small>ID ${escapeHtml(client.id)} · ${escapeHtml(client.access_code)}</small>
       </button>
     `).join("");
 
-    mentorClientList.querySelectorAll("[data-client-id]").forEach(button => {
+    mentorClientCards.querySelectorAll("[data-client-id]").forEach(button => {
       button.addEventListener("click", () => {
-        mentorClientList.querySelectorAll(".mentor-client-card").forEach(card => card.classList.remove("active"));
-        button.classList.add("active");
         const clientId = button.getAttribute("data-client-id");
         void activateClient(clientId);
       });
@@ -1244,21 +934,14 @@ function renderMentorPanel() {
     try {
       const response = await apiRequest("/api/clients", { method: "GET" });
       mentorClients = response.clients || [];
-      await renderMentorClientList(mentorClients);
-
-      const currentClientId = currentSessionId() ? load("client_id") : "";
-      const currentMentorSessionId = currentSessionId() ? load("session_id") : "";
-      if (currentClientId) {
-        await activateClient(currentClientId, currentMentorSessionId || null);
-      } else if (mentorClients[0]) {
-        await activateClient(mentorClients[0].id);
-      } else {
-        mentorHistoryPanel.innerHTML = '<div class="mentor-list-loading">Nenhuma cliente cadastrada ainda.</div>';
-      }
+      renderClientCards(mentorClients);
+      showClientCards();
     } catch (error) {
-      mentorClientList.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
+      mentorClientCards.innerHTML = `<div class="mentor-list-loading">${escapeHtml(error.message)}</div>`;
     }
   })();
+
+  mentorBackToCardsBtn.onclick = showClientCards;
 
   document.getElementById("mentorExitBtn").onclick = () => {
     mentorMode = false;
