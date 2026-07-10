@@ -46,6 +46,8 @@ const steps = [
       <strong>01 — Antes:</strong> você responde este diagnóstico. Assim, começamos falando de estratégia, e não apenas coletando informações básicas.<br><br>
       <strong>02 — Durante:</strong> nos encontros, registrarei percepções, hipóteses, oportunidades e decisões dentro do seu Mapa Estratégico.<br><br>
       <strong>03 — Depois:</strong> ao final da mentoria, você receberá o Relatório Estratégico Casa Clube®, com diagnóstico, oportunidades, prioridades, plano de ação, recomendações e próximos passos.
+      <br><br>
+      <strong>Importante:</strong> você pode ir respondendo etapa por etapa e usar o botão <strong>Salvar etapa</strong>. Assim, a mentora já consegue analisar cada etapa concluída.
     `,
     fields: []
   },
@@ -352,6 +354,32 @@ async function saveMentorNoteRemote(stepKey, note, sessionId = currentSessionId(
   } catch (error) {
     console.error("Failed to save mentor note", error);
   }
+}
+
+async function saveCurrentStepRemote() {
+  const sessionId = currentSessionId();
+
+  if (!sessionId) {
+    throw new Error("Sessão da cliente não encontrada.");
+  }
+
+  const step = steps[currentStep];
+  const fields = step.fields || [];
+
+  for (const [, label] of fields) {
+    const fieldKey = slug(label);
+    const answer = load(fieldKey);
+    await apiRequest(`/api/sessions/${sessionId}/answers`, {
+      method: "POST",
+      body: JSON.stringify({
+        step_key: step.title,
+        field_key: fieldKey,
+        answer,
+      }),
+    });
+  }
+
+  return fields.length;
 }
 
 function hydrateHistory(history) {
@@ -1003,6 +1031,8 @@ function renderMenu() {
 }
 
 function render() {
+  const saveStepBtn = document.getElementById("saveStepBtn");
+
   if (appMode === "landing") {
     mentorMode = false;
     renderLanding();
@@ -1013,6 +1043,7 @@ function render() {
     answerCount.textContent = String(savedAnswerCount());
     document.getElementById("prevBtn").disabled = true;
     document.getElementById("nextBtn").textContent = "Entrar na área";
+    saveStepBtn.hidden = true;
     document.getElementById("pdfBtn").hidden = true;
     return;
   }
@@ -1026,6 +1057,7 @@ function render() {
     answerCount.textContent = String(savedAnswerCount());
     document.getElementById("prevBtn").disabled = true;
     document.getElementById("nextBtn").textContent = "Área da mentora";
+    saveStepBtn.hidden = true;
     document.getElementById("pdfBtn").hidden = true;
     return;
   }
@@ -1135,6 +1167,9 @@ function render() {
   const pdfBtn = document.getElementById("pdfBtn");
 
   nextBtn.textContent = isFinalStep ? "Gerar relatório final" : "Próxima etapa";
+  saveStepBtn.hidden = false;
+  saveStepBtn.disabled = false;
+  saveStepBtn.textContent = "Salvar etapa";
   pdfBtn.hidden = !isFinalStep;
   pdfBtn.textContent = "Gerar PDF final";
 
@@ -1184,6 +1219,30 @@ document.getElementById("prevBtn").onclick = () => {
     currentStep--;
     localStorage.setItem("cc_currentStep", currentStep);
     render();
+  }
+};
+
+document.getElementById("saveStepBtn").onclick = async () => {
+  if (appMode !== "client" || mentorMode) {
+    return;
+  }
+
+  const saveStepBtn = document.getElementById("saveStepBtn");
+  const originalLabel = saveStepBtn.textContent;
+  saveStepBtn.disabled = true;
+  saveStepBtn.textContent = "Salvando etapa...";
+
+  try {
+    const savedCount = await saveCurrentStepRemote();
+    saveStepBtn.textContent = savedCount > 0 ? "Etapa salva" : "Etapa sem campos";
+    window.setTimeout(() => {
+      saveStepBtn.textContent = originalLabel;
+      saveStepBtn.disabled = false;
+    }, 1400);
+  } catch (error) {
+    saveStepBtn.textContent = originalLabel;
+    saveStepBtn.disabled = false;
+    window.alert(`Não foi possível salvar esta etapa: ${error.message}`);
   }
 };
 
