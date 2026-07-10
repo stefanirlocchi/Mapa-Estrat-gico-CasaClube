@@ -235,6 +235,18 @@ const steps = [
   }
 ];
 
+const MENTOR_CHECKLIST_STEP_KEY = "Observações da Mentora";
+const MENTOR_CHECKLIST_FIELDS = [
+  "Hipóteses iniciais",
+  "Pontos fortes observados",
+  "Oportunidades de melhoria",
+  "Prioridades sugeridas",
+  "Decisões tomadas durante os encontros",
+  "Ações de curto prazo",
+  "Ações de médio e longo prazo",
+  "Próximos passos para o relatório final",
+];
+
 let currentStep = Number(localStorage.getItem("cc_currentStep")) || 0;
 let mentorMode = sessionStorage.getItem("cc_mentor_unlocked") === "true";
 let appMode = sessionStorage.getItem("cc_app_mode") || "landing";
@@ -393,6 +405,47 @@ function buildStepSummaryMap(items = []) {
   });
 
   return summary;
+}
+
+function parseMentorChecklistNote(note = "") {
+  const values = {};
+
+  MENTOR_CHECKLIST_FIELDS.forEach(label => {
+    values[label] = "";
+  });
+
+  const normalized = String(note || "").replace(/\r\n/g, "\n");
+  if (!normalized.trim()) {
+    return values;
+  }
+
+  const lines = normalized.split("\n");
+  let currentLabel = "";
+
+  for (const line of lines) {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex > 0) {
+      const possibleLabel = line.slice(0, separatorIndex).trim();
+      if (MENTOR_CHECKLIST_FIELDS.includes(possibleLabel)) {
+        currentLabel = possibleLabel;
+        values[currentLabel] = line.slice(separatorIndex + 1).trim();
+        continue;
+      }
+    }
+
+    if (currentLabel && line.trim()) {
+      values[currentLabel] = `${values[currentLabel]}\n${line}`.trim();
+    }
+  }
+
+  return values;
+}
+
+function buildMentorChecklistNote(values = {}) {
+  return MENTOR_CHECKLIST_FIELDS
+    .map(label => `${label}: ${String(values[label] || "").trim()}`)
+    .join("\n\n")
+    .trim();
 }
 
 async function fetchMentorClientDashboard(clientId, sessionId = null) {
@@ -635,6 +688,8 @@ function renderMentorPanel() {
     const answersByStep = buildStepSummaryMap(answers);
     const reportUrl = buildReportUrl(session.last_report_path);
     const reportDownloadUrl = buildReportDownloadUrl(session.last_report_path);
+    const mentorChecklistRaw = (notesByStep.get(MENTOR_CHECKLIST_STEP_KEY) || [])[0]?.note || "";
+    const mentorChecklistValues = parseMentorChecklistNote(mentorChecklistRaw);
 
     const sessionButtons = sessions.map(item => {
       const isActive = String(item.id) === String(activeSessionId || session.id);
@@ -739,6 +794,21 @@ function renderMentorPanel() {
           </div>
         </section>
       ` : ""}
+      <section class="mentor-checklist-panel">
+        <div class="mentor-checklist-head">
+          <p class="landing-kicker">Modelo fixo da mentora</p>
+          <h3>Checklist estratégico desta cliente</h3>
+          <p>Esses apontamentos são internos e ficam vinculados a esta sessão.</p>
+        </div>
+        <div class="mentor-checklist-grid">
+          ${MENTOR_CHECKLIST_FIELDS.map(label => `
+            <label class="mentor-checklist-item">
+              <span>${escapeHtml(label)}</span>
+              <textarea data-mentor-checklist-field="${escapeHtml(label)}" placeholder="Digite aqui...">${escapeHtml(mentorChecklistValues[label] || "")}</textarea>
+            </label>
+          `).join("")}
+        </div>
+      </section>
       <div class="mentor-grid">
         ${sections || '<div class="mentor-list-loading">Esta sessão ainda não tem respostas.</div>'}
       </div>
@@ -840,6 +910,22 @@ function renderMentorPanel() {
           await saveMentorNoteRemote(stepKey, note, session.id);
         }, 420);
         noteTimers.set(stepKey, timerId);
+      });
+    });
+
+    const checklistState = { ...mentorChecklistValues };
+    const checklistTimers = new Map();
+    mentorHistoryPanel.querySelectorAll("[data-mentor-checklist-field]").forEach(textarea => {
+      textarea.addEventListener("input", event => {
+        const fieldLabel = textarea.getAttribute("data-mentor-checklist-field") || "";
+        checklistState[fieldLabel] = event.target.value;
+
+        window.clearTimeout(checklistTimers.get(fieldLabel));
+        const timerId = window.setTimeout(async () => {
+          const mergedNote = buildMentorChecklistNote(checklistState);
+          await saveMentorNoteRemote(MENTOR_CHECKLIST_STEP_KEY, mergedNote, session.id);
+        }, 420);
+        checklistTimers.set(fieldLabel, timerId);
       });
     });
   };

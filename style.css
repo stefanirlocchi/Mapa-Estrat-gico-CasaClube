@@ -943,6 +943,54 @@ button:focus {
   background: #fdf4ed;
 }
 
+.mentor-checklist-panel {
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fffdfb 0%, #fff7f1 100%);
+  border: 1px solid #eadfd2;
+  box-shadow: 0 10px 24px rgba(59, 39, 31, 0.05);
+}
+
+.mentor-checklist-head h3 {
+  margin: 0 0 6px;
+  color: var(--vinho-escuro);
+  font-size: 1.15rem;
+}
+
+.mentor-checklist-head p {
+  margin: 0;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.mentor-checklist-grid {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.mentor-checklist-item {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #e8dccc;
+  background: #ffffff;
+}
+
+.mentor-checklist-item span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--vinho-escuro);
+  font-weight: 700;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.mentor-checklist-item textarea {
+  min-height: 92px;
+  background: #fffaf7;
+}
+
 .mentor-grid {
   display: grid;
   gap: 16px;
