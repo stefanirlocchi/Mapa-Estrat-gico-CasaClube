@@ -438,6 +438,23 @@ function buildStepSummaryMap(items = []) {
   return summary;
 }
 
+function formatFileSize(bytes) {
+  const value = Number(bytes || 0);
+  if (!value) {
+    return "0 B";
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function parseMentorChecklistNote(note = "") {
   const values = {};
 
@@ -519,12 +536,42 @@ async function getOrCreateSession(clientId) {
   return session;
 }
 
+async function uploadAttachmentsRemote(stepKey, fieldKey, files = []) {
+  const sessionId = currentSessionId();
+
+  if (!sessionId) {
+    throw new Error("Sessão da cliente não encontrada.");
+  }
+
+  if (!files.length) {
+    return [];
+  }
+
+  const formData = new FormData();
+  formData.append("step_key", stepKey);
+  formData.append("field_key", fieldKey);
+  files.forEach(file => formData.append("files", file));
+
+  const response = await apiRequest(`/api/sessions/${sessionId}/attachments`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.attachments || [];
+}
+
 async function apiRequest(path, options = {}) {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const headers = {
+    ...(options.headers || {}),
+  };
+
+  if (!isFormData) {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers,
     ...options,
   });
 
@@ -730,8 +777,10 @@ function renderMentorPanel() {
     const session = historyData.session;
     const answers = historyData.answers || [];
     const notes = historyData.notes || [];
+    const attachments = historyData.attachments || [];
     const notesByStep = buildStepSummaryMap(notes);
     const answersByStep = buildStepSummaryMap(answers);
+    const attachmentsByStep = buildStepSummaryMap(attachments);
     const reportDownloadUrl = buildReportDownloadUrl(session.last_report_path);
     const mentorChecklistRaw = (notesByStep.get(MENTOR_CHECKLIST_STEP_KEY) || [])[0]?.note || "";
     const mentorChecklistValues = parseMentorChecklistNote(mentorChecklistRaw);
@@ -751,6 +800,7 @@ function renderMentorPanel() {
     const sections = steps.map(step => {
       const stepAnswers = answersByStep.get(step.title) || [];
       const stepNotes = notesByStep.get(step.title) || [];
+      const stepAttachments = attachmentsByStep.get(step.title) || [];
       const answerItems = stepAnswers.map(item => `
         <div class="answer-item">
           <strong>${escapeHtml(item.field_key)}</strong>
@@ -763,8 +813,23 @@ function renderMentorPanel() {
           <p>${escapeHtml(item.note || "—")}</p>
         </div>
       `).join("");
+      const attachmentItems = stepAttachments.map(item => {
+        const viewUrl = `${API_BASE_URL}${item.view_url}`;
+        const downloadUrl = `${API_BASE_URL}${item.download_url}`;
+        return `
+          <div class="answer-item attachment-item">
+            <strong>Anexo: ${escapeHtml(item.original_name || "arquivo")}</strong>
+            <p>${escapeHtml(item.field_key || "documento")}</p>
+            <small>${escapeHtml(formatFileSize(item.file_size))}</small>
+            <div class="attachment-actions">
+              <a href="${viewUrl}" target="_blank" rel="noopener noreferrer">Abrir</a>
+              <a href="${downloadUrl}" target="_blank" rel="noopener noreferrer">Baixar</a>
+            </div>
+          </div>
+        `;
+      }).join("");
 
-      if (!answerItems && !noteItems) {
+      if (!answerItems && !noteItems && !attachmentItems) {
         return "";
       }
 
@@ -778,6 +843,7 @@ function renderMentorPanel() {
           <div class="mentor-items">
             ${answerItems || '<div class="answer-item empty"><strong>Sem respostas</strong><p>Não há respostas nesta etapa.</p></div>'}
             ${noteItems}
+            ${attachmentItems}
           </div>
         </article>
       `;
@@ -1132,17 +1198,28 @@ function render() {
       box.innerHTML = `
         <label>${label}</label>
         <input type="file" multiple>
-        <p>Obs.: nesta versão, o portal registra os nomes dos arquivos. Para upload online real, será necessário conectar banco de dados.</p>
+        <p>Os arquivos selecionados são enviados para a sessão atual e ficam disponíveis para a mentora.</p>
         <textarea placeholder="Arquivos enviados ou observações">${load(id)}</textarea>
       `;
       const input = box.querySelector("input");
       const textarea = box.querySelector("textarea");
 
-      input.addEventListener("change", e => {
-        const names = [...e.target.files].map(file => file.name).join(", ");
+      input.addEventListener("change", async e => {
+        const selectedFiles = [...e.target.files];
+        const names = selectedFiles.map(file => file.name).join(", ");
         textarea.value = names;
         save(id, names);
         void saveAnswerRemote(step.title, id, names);
+
+        if (!selectedFiles.length) {
+          return;
+        }
+
+        try {
+          await uploadAttachmentsRemote(step.title, id, selectedFiles);
+        } catch (error) {
+          window.alert(`Não foi possível enviar os arquivos: ${error.message}`);
+        }
       });
 
       textarea.addEventListener("input", e => {

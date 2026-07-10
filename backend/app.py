@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
@@ -20,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 DB_PATH = Path(os.environ.get("DATABASE_PATH", str(BASE_DIR / "mentoria.db"))).expanduser()
 REPORTS_DIR = BASE_DIR / "generated_reports"
+UPLOADS_DIR = Path(os.environ.get("UPLOADS_DIR", str(BASE_DIR / "uploads"))).expanduser()
 CASA_CLUBE_LOGO = PROJECT_ROOT / "logo.casaclube.cropped.png"
 LU_LOCCCHI_LOGO = PROJECT_ROOT / "LOGOMENTORALULOCCHI.cropped.png"
 LOGO_CACHE_DIR = REPORTS_DIR / "logo-cache"
@@ -249,6 +251,12 @@ def report_file_name(session_id: int) -> str:
     return f"session_{session_id}_final_report.pdf"
 
 
+def sanitize_filename(file_name: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in (file_name or "arquivo"))
+    cleaned = cleaned.strip("._")
+    return cleaned or "arquivo"
+
+
 def get_connection() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
@@ -261,6 +269,7 @@ def init_db() -> None:
     schema_path = BASE_DIR / "schema.sql"
     with get_connection() as connection:
         connection.executescript(schema_path.read_text(encoding="utf-8"))
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def ensure_db_initialized() -> None:
@@ -523,11 +532,157 @@ def create_app() -> Flask:
                 (session_id,),
             ).fetchall()
 
+            attachments = connection.execute(
+                """
+                SELECT id, session_id, step_key, field_key, original_name, stored_name, content_type, file_size, created_at
+                FROM session_attachments
+                WHERE session_id = ?
+                ORDER BY id ASC
+                """,
+                (session_id,),
+            ).fetchall()
+
         return jsonify(
             session=dict(session),
             answers=[dict(row) for row in answers],
             notes=[dict(row) for row in notes],
+            attachments=[
+                {
+                    **dict(row),
+                    "view_url": f"/api/attachments/{row['id']}",
+                    "download_url": f"/api/attachments/{row['id']}/download",
+                }
+                for row in attachments
+            ],
         ), 200
+
+    @app.route("/api/sessions/<int:session_id>/attachments", methods=["POST", "OPTIONS"])
+    def upload_session_attachments(session_id: int) -> tuple[dict, int]:
+        if request.method == "OPTIONS":
+            return jsonify(ok=True), 200
+
+        step_key = str(request.form.get("step_key", "")).strip()
+        field_key = str(request.form.get("field_key", "")).strip()
+        uploaded_files = request.files.getlist("files") or request.files.getlist("file")
+
+        if not step_key or not field_key:
+            return jsonify(error="step_key and field_key are required"), 400
+
+        if not uploaded_files:
+            return jsonify(error="at least one file is required"), 400
+
+        with get_connection() as connection:
+            session = connection.execute(
+                "SELECT id FROM mentorship_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+
+            if session is None:
+                return jsonify(error="session not found"), 404
+
+            session_dir = UPLOADS_DIR / f"session_{session_id}"
+            session_dir.mkdir(parents=True, exist_ok=True)
+
+            created = []
+            for storage_file in uploaded_files:
+                if storage_file is None:
+                    continue
+
+                original_name = sanitize_filename(storage_file.filename or "arquivo")
+                suffix = Path(original_name).suffix.lower()
+                unique_name = f"{uuid.uuid4().hex}{suffix}"
+                destination = session_dir / unique_name
+                storage_file.save(destination)
+
+                file_size = destination.stat().st_size if destination.exists() else 0
+                content_type = storage_file.mimetype or "application/octet-stream"
+
+                cursor = connection.execute(
+                    """
+                    INSERT INTO session_attachments (
+                        session_id, step_key, field_key, original_name, stored_name, content_type, file_size, created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (session_id, step_key, field_key, original_name, unique_name, content_type, file_size, utc_now()),
+                )
+                attachment_id = cursor.lastrowid
+                created.append(
+                    {
+                        "id": attachment_id,
+                        "session_id": session_id,
+                        "step_key": step_key,
+                        "field_key": field_key,
+                        "original_name": original_name,
+                        "stored_name": unique_name,
+                        "content_type": content_type,
+                        "file_size": file_size,
+                        "created_at": utc_now(),
+                        "view_url": f"/api/attachments/{attachment_id}",
+                        "download_url": f"/api/attachments/{attachment_id}/download",
+                    }
+                )
+
+            connection.execute(
+                "UPDATE mentorship_sessions SET updated_at = ? WHERE id = ?",
+                (utc_now(), session_id),
+            )
+            connection.commit()
+
+        return jsonify(session_id=session_id, attachments=created), 201
+
+    @app.get("/api/attachments/<int:attachment_id>")
+    def view_attachment(attachment_id: int):
+        with get_connection() as connection:
+            attachment = connection.execute(
+                """
+                SELECT id, session_id, original_name, stored_name, content_type
+                FROM session_attachments
+                WHERE id = ?
+                """,
+                (attachment_id,),
+            ).fetchone()
+
+        if attachment is None:
+            return jsonify(error="attachment not found"), 404
+
+        file_path = UPLOADS_DIR / f"session_{attachment['session_id']}" / attachment["stored_name"]
+        if not file_path.exists():
+            return jsonify(error="attachment file not found"), 404
+
+        return send_from_directory(
+            file_path.parent,
+            file_path.name,
+            mimetype=attachment["content_type"] or "application/octet-stream",
+            as_attachment=False,
+        )
+
+    @app.get("/api/attachments/<int:attachment_id>/download")
+    def download_attachment(attachment_id: int):
+        with get_connection() as connection:
+            attachment = connection.execute(
+                """
+                SELECT id, session_id, original_name, stored_name, content_type
+                FROM session_attachments
+                WHERE id = ?
+                """,
+                (attachment_id,),
+            ).fetchone()
+
+        if attachment is None:
+            return jsonify(error="attachment not found"), 404
+
+        file_path = UPLOADS_DIR / f"session_{attachment['session_id']}" / attachment["stored_name"]
+        if not file_path.exists():
+            return jsonify(error="attachment file not found"), 404
+
+        return send_from_directory(
+            file_path.parent,
+            file_path.name,
+            mimetype=attachment["content_type"] or "application/octet-stream",
+            as_attachment=True,
+            download_name=attachment["original_name"],
+        )
 
     @app.route("/api/sessions/<int:session_id>/answers", methods=["POST", "OPTIONS"])
     def upsert_step_answer(session_id: int) -> tuple[dict, int]:

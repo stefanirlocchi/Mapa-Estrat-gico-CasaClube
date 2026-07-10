@@ -48,3 +48,16 @@ CREATE TABLE IF NOT EXISTS final_reports (
     generated_at TEXT NOT NULL,
     FOREIGN KEY (session_id) REFERENCES mentorship_sessions (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS session_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    step_key TEXT NOT NULL,
+    field_key TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    content_type TEXT,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES mentorship_sessions (id) ON DELETE CASCADE
+);

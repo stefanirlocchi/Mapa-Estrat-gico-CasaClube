@@ -1125,6 +1125,37 @@ button:focus {
   background: #fdf4ed;
 }
 
+.attachment-item small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.attachment-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.attachment-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d8c3b2;
+  color: var(--vinho-escuro);
+  text-decoration: none;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.82rem;
+  background: #fffaf7;
+}
+
+.attachment-actions a:hover {
+  background: #fdf1e8;
+}
+
 .buttons {
   max-width: 1180px;
   margin: 18px auto 0;
