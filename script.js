@@ -733,6 +733,7 @@ function renderMentorPanel() {
           <div class="mentor-report-actions">
             <a class="mentor-report-link" href="${reportUrl}" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
             <a class="mentor-report-link outline-link" href="${reportDownloadUrl}" download>Baixar PDF</a>
+            <button class="mentor-report-link outline-link" type="button" data-download-complete-pdf>Baixar PDF completo</button>
             <button class="mentor-report-link ghost-link" type="button" data-copy-report-link>Copiar link</button>
             <button class="mentor-report-link ghost-link" type="button" data-share-report>Compartilhar</button>
           </div>
@@ -790,6 +791,30 @@ function renderMentorPanel() {
           }, 1800);
         } catch (error) {
           window.alert(`Não foi possível compartilhar o relatório: ${error.message}`);
+        }
+      });
+    }
+
+    const downloadCompleteBtn = mentorHistoryPanel.querySelector("[data-download-complete-pdf]");
+    if (downloadCompleteBtn) {
+      downloadCompleteBtn.addEventListener("click", async () => {
+        const originalLabel = downloadCompleteBtn.textContent;
+        downloadCompleteBtn.textContent = "Gerando PDF completo...";
+        downloadCompleteBtn.disabled = true;
+
+        try {
+          const response = await apiRequest(`/api/sessions/${session.id}/reports`, {
+            method: "POST",
+            body: JSON.stringify({ report_path: "server-pdf-completo" }),
+          });
+
+          const completeDownloadUrl = `${API_BASE_URL}${response.download_url}`;
+          window.open(completeDownloadUrl, "_blank", "noopener,noreferrer");
+        } catch (error) {
+          window.alert(`Não foi possível gerar o PDF completo: ${error.message}`);
+        } finally {
+          downloadCompleteBtn.textContent = originalLabel;
+          downloadCompleteBtn.disabled = false;
         }
       });
     }
