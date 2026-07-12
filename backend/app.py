@@ -28,9 +28,9 @@ LOGO_CACHE_DIR = REPORTS_DIR / "logo-cache"
 
 REPORT_STEP_TITLES = [
     "Área da cliente",
-    "Boas-vindas",
-    "A Primeira Pergunta",
     "Como funciona",
+    "Boas vindas",
+    "Vamos começar",
     "Expectativas",
     "Origem",
     "Essência",

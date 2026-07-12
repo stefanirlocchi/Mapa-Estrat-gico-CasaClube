@@ -12,33 +12,6 @@ const steps = [
     fields: []
   },
   {
-    title: "Boas-vindas",
-    summary: "Contextualiza a metodologia e prepara o terreno para a mentoria.",
-    intro: `
-      <strong>MAPA ESTRATÉGICO CASA CLUBE®</strong><br><br>
-      Muito prazer. Antes de falarmos sobre sua empresa, quero falar sobre você.
-      <br><br>
-      Empresas quase nunca deixam de crescer por falta de trabalho. Elas deixam de crescer porque continuam tomando decisões sem clareza.
-      <br><br>
-      Meu papel nesta mentoria não é entregar respostas prontas. É ajudar você a enxergar o seu negócio sob uma nova perspectiva.
-      <br><br>
-      Este Mapa Estratégico será a base de todo o nosso trabalho. Quanto mais sinceras forem suas respostas, mais estratégica será nossa construção.
-    `,
-    fields: []
-  },
-  {
-    title: "A Primeira Pergunta",
-    summary: "Abre espaço para a questão mais importante do diagnóstico.",
-    intro: `
-      Essa costuma ser a resposta mais importante de todo o diagnóstico.
-      Muitas vezes, ela revela mais do que todas as outras perguntas juntas.
-    `,
-    specialClass: "big-question",
-    fields: [
-      ["textarea", "Se você pudesse me fazer apenas UMA pergunta sobre o seu negócio, e eu tivesse que responder com total sinceridade, qual seria essa pergunta?"]
-    ]
-  },
-  {
     title: "Como funciona",
     summary: "Explica o fluxo antes, durante e depois da mentoria.",
     intro: `
@@ -50,6 +23,36 @@ const steps = [
       <strong>Importante:</strong> você pode ir respondendo etapa por etapa e usar o botão <strong>Salvar etapa</strong>. Assim, a mentora já consegue analisar cada etapa concluída.
     `,
     fields: []
+  },
+  {
+    title: "Boas vindas",
+    summary: "Contextualiza a metodologia e prepara o terreno para a mentoria.",
+    intro: `
+      <h2>Antes de começarmos…</h2>
+      <p>Quero que você esqueça, por alguns minutos, tudo o que veio fazer aqui.</p>
+      <p>Não pense em faturamento.</p>
+      <p>Não pense em vendas.</p>
+      <p>Não pense nos problemas da empresa.</p>
+      <p>Pense apenas em você.</p>
+      <p>Porque antes de existir uma empresa, existe uma pessoa tomando decisões todos os dias.</p>
+      <p>E é essa pessoa que eu quero conhecer primeiro.</p>
+    `,
+    fields: []
+  },
+  {
+    title: "Vamos começar",
+    summary: "Abre espaço para as perguntas mais importantes do diagnóstico.",
+    intro: `
+      <strong>Antes de começar, responda com calma.</strong><br><br>
+      Não se preocupe em encontrar as palavras certas. Apenas descreva, com sinceridade, como você enxerga o seu negócio neste momento.
+      <br><br>
+      Essas respostas ajudam a orientar o caminho da mentoria desde o início.
+    `,
+    fields: [
+      ["textarea", "Por que este é o momento certo para esta mentoria?"],
+      ["textarea", "Conte a história do momento que sua empresa está vivendo hoje."],
+      ["textarea", "Se pudesse transformar apenas uma coisa nos próximos 12 meses, o que seria?"]
+    ]
   },
   {
     title: "Conteúdos e Leituras",
